@@ -18,7 +18,8 @@ module Delayed
     
           priority = args.first || Delayed::Worker.default_priority
           run_at   = args[1]
-          self.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+          server   = args[2]
+          self.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at, :server => server)
         end
 
         def reserve(worker, max_run_time = Worker.max_run_time)

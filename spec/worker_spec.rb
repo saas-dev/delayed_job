@@ -35,7 +35,7 @@ describe Delayed::Worker do
           begin
             old_max_run_time = Delayed::Worker.max_run_time
             Delayed::Worker.max_run_time = 1.second
-            @job = Delayed::Job.create :payload_object => LongRunningJob.new
+            @job = Delayed::Job.create :payload_object => LongRunningJob.new, :server => "prod01"
             @worker.run(@job)
             @job.reload.last_error.should =~ /expired/
             @job.attempts.should == 1
@@ -72,6 +72,22 @@ describe Delayed::Worker do
         end
       end
 
+      context "on multiple server" do
+        before(:each) do
+          @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => -5, :quiet => true, :server => "prod01")
+        end
+
+        it "should only work_off jobs that are from its server" do
+          SimpleJob.runs.should == 0
+
+          job_create(:server => "prod01")
+          job_create(:server => "prod02")
+          @worker.work_off
+
+          SimpleJob.runs.should == 1
+        end
+      end
+
       context "while running with locked and expired jobs" do
         before(:each) do
           @worker.name = 'worker1'
@@ -83,18 +99,18 @@ describe Delayed::Worker do
         end
     
         it "should run open jobs" do
-          job_create
+          job_create(:server => "prod01")
           lambda { @worker.work_off }.should change { SimpleJob.runs }.from(0).to(1)
         end
     
         it "should run expired jobs" do
           expired_time = Delayed::Job.db_time_now - (1.minutes + Delayed::Worker.max_run_time)
-          job_create(:locked_by => 'other_worker', :locked_at => expired_time)
+          job_create(:locked_by => 'other_worker', :locked_at => expired_time, :server => "prod01")
           lambda { @worker.work_off }.should change { SimpleJob.runs }.from(0).to(1)
         end
     
         it "should run own jobs" do
-          job_create(:locked_by => @worker.name, :locked_at => (Delayed::Job.db_time_now - 1.minutes))
+          job_create(:locked_by => @worker.name, :locked_at => (Delayed::Job.db_time_now - 1.minutes), :server => "prod01")
           lambda { @worker.work_off }.should change { SimpleJob.runs }.from(0).to(1)
         end
       end
@@ -104,6 +120,7 @@ describe Delayed::Worker do
           # reset defaults
           Delayed::Worker.destroy_failed_jobs = true
           Delayed::Worker.max_attempts = 25
+          Delayed::Worker.server = nil
           Delayed::Job.delete_all
 
           @job = Delayed::Job.enqueue ErrorJob.new
@@ -153,7 +170,7 @@ describe Delayed::Worker do
   
       context "reschedule" do
         before do
-          @job = Delayed::Job.create :payload_object => SimpleJob.new
+          @job = Delayed::Job.create :payload_object => SimpleJob.new, :server => "prod01"
         end
    
         share_examples_for "any failure more than Worker.max_attempts times" do
