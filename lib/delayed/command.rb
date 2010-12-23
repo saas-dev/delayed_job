@@ -10,7 +10,8 @@ module Delayed
       @files_to_reopen = []
       @options = {
         :quiet => true,
-        :pid_dir => "#{RAILS_ROOT}/tmp/pids"
+        :pid_dir => "#{RAILS_ROOT}/tmp/pids",
+        :server => hostname
       }
       
       @worker_count = 1
@@ -47,10 +48,17 @@ module Delayed
         opts.on('--sleep-delay N', "Amount of time to sleep when no jobs are found") do |n|
           @options[:sleep_delay] = n
         end
+        opts.on('--server', '-s', "Specify which server DJ must search for jobs") do |string|
+          @options[:server] = string.to_s
+        end
       end
       @args = opts.parse!(args)
     end
   
+    def hostname
+      exec "hostname -a"
+    end
+
     def daemonize
       Delayed::Worker.backend.before_fork
 
