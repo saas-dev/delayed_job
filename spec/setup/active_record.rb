@@ -30,5 +30,5 @@ class Story < ActiveRecord::Base
   def tell; text; end       
   def whatever(n, _); tell*n; end
   
-  handle_asynchronously :whatever
+  handle_asynchronously :whatever, :server => "prod01"
 end
