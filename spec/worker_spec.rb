@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Delayed::Worker do
   def job_create(opts = {})
-    Delayed::Job.create(opts.merge(:payload_object => SimpleJob.new))
+    Delayed::Job.create(opts.merge(:payload_object => SimpleJob.new, :server => opts[:server] || "prod01"))
   end
 
   describe "backend=" do
@@ -11,14 +11,14 @@ describe Delayed::Worker do
       Delayed::Worker.backend = @clazz
       Delayed::Job.should == @clazz
     end
-    
+
     it "should set backend with a symbol" do
       Delayed::Worker.backend = Class.new
       Delayed::Worker.backend = :active_record
       Delayed::Worker.backend.should == Delayed::Backend::ActiveRecord::Job
     end
   end
-  
+
   BACKENDS.each do |backend|
     describe "with the #{backend} backend" do
       before do
@@ -29,7 +29,7 @@ describe Delayed::Worker do
 
         SimpleJob.runs = 0
       end
-  
+
       describe "running a job" do
         it "should fail after Worker.max_run_time" do
           begin
@@ -44,7 +44,7 @@ describe Delayed::Worker do
           end
         end
       end
-  
+
       context "worker prioritization" do
         before(:each) do
           @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => -5, :quiet => true)
@@ -92,35 +92,35 @@ describe Delayed::Worker do
         before(:each) do
           @worker.name = 'worker1'
         end
-    
+
         it "should not run jobs locked by another worker" do
           job_create(:locked_by => 'other_worker', :locked_at => (Delayed::Job.db_time_now - 1.minutes))
           lambda { @worker.work_off }.should_not change { SimpleJob.runs }
         end
-    
+
         it "should run open jobs" do
-          job_create(:server => "prod01")
+          job_create
           lambda { @worker.work_off }.should change { SimpleJob.runs }.from(0).to(1)
         end
-    
+
         it "should run expired jobs" do
           expired_time = Delayed::Job.db_time_now - (1.minutes + Delayed::Worker.max_run_time)
-          job_create(:locked_by => 'other_worker', :locked_at => expired_time, :server => "prod01")
+          job_create(:locked_by => 'other_worker', :locked_at => expired_time)
           lambda { @worker.work_off }.should change { SimpleJob.runs }.from(0).to(1)
         end
-    
+
         it "should run own jobs" do
-          job_create(:locked_by => @worker.name, :locked_at => (Delayed::Job.db_time_now - 1.minutes), :server => "prod01")
+          job_create(:locked_by => @worker.name, :locked_at => (Delayed::Job.db_time_now - 1.minutes))
           lambda { @worker.work_off }.should change { SimpleJob.runs }.from(0).to(1)
         end
       end
-  
+
       describe "failed jobs" do
         before do
           # reset defaults
           Delayed::Worker.destroy_failed_jobs = true
           Delayed::Worker.max_attempts = 25
-          Delayed::Worker.server = nil
+          Delayed::Worker.server = "prod01"
           Delayed::Job.delete_all
 
           @job = Delayed::Job.enqueue ErrorJob.new
@@ -136,7 +136,7 @@ describe Delayed::Worker do
           @job.attempts.should == 1
           @job.failed_at.should_not be_nil
         end
-    
+
         it "should re-schedule jobs after failing" do
           @worker.work_off
           @job.reload
@@ -148,7 +148,7 @@ describe Delayed::Worker do
           @job.locked_at.should be_nil
           @job.locked_by.should be_nil
         end
-        
+
         context "when the job's payload implements #reschedule_at" do
           before(:each) do
             @reschedule_at = Time.current + 7.hours
@@ -167,12 +167,12 @@ describe Delayed::Worker do
           end
         end
       end
-  
+
       context "reschedule" do
         before do
           @job = Delayed::Job.create :payload_object => SimpleJob.new, :server => "prod01"
         end
-   
+
         share_examples_for "any failure more than Worker.max_attempts times" do
           context "when the job's payload has an #on_permanent_failure hook" do
             before do
@@ -187,18 +187,18 @@ describe Delayed::Worker do
           end
 
           context "when the job's payload has no #on_permanent_failure hook" do
-            # It's a little tricky to test this in a straightforward way, 
-            # because putting a should_not_receive expectation on 
+            # It's a little tricky to test this in a straightforward way,
+            # because putting a should_not_receive expectation on
             # @job.payload_object.on_permanent_failure makes that object
-            # incorrectly return true to 
+            # incorrectly return true to
             # payload_object.respond_to? :on_permanent_failure, which is what
-            # reschedule uses to decide whether to call on_permanent_failure.  
-            # So instead, we just make sure that the payload_object as it 
+            # reschedule uses to decide whether to call on_permanent_failure.
+            # So instead, we just make sure that the payload_object as it
             # already stands doesn't respond_to? on_permanent_failure, then
             # shove it through the iterated reschedule loop and make sure we
             # don't get a NoMethodError (caused by calling that nonexistent
             # on_permanent_failure method).
-            
+
             before do
               @job.payload_object.should_not respond_to(:on_permanent_failure)
             end
@@ -222,18 +222,18 @@ describe Delayed::Worker do
             @job.should_receive(:destroy)
             Delayed::Worker.max_attempts.times { @worker.reschedule(@job) }
           end
-      
+
           it "should not be destroyed if failed fewer than Worker.max_attempts times" do
             @job.should_not_receive(:destroy)
             (Delayed::Worker.max_attempts - 1).times { @worker.reschedule(@job) }
           end
         end
-    
+
         context "and we don't want to destroy jobs" do
           before do
             Delayed::Worker.destroy_failed_jobs = false
           end
-      
+
           it_should_behave_like "any failure more than Worker.max_attempts times"
 
           it "should be failed if it failed more than Worker.max_attempts times" do
@@ -250,5 +250,5 @@ describe Delayed::Worker do
       end
     end
   end
-  
+
 end
