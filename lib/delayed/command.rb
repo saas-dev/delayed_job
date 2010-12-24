@@ -56,7 +56,7 @@ module Delayed
     end
   
     def hostname
-      exec "hostname -a"
+      exec "hostname -s"
     end
 
     def daemonize
