@@ -11,7 +11,7 @@ module Delayed
       @options = {
         :quiet => true,
         :pid_dir => "#{RAILS_ROOT}/tmp/pids",
-        :server => hostname
+        :server => nil
       }
       
       @worker_count = 1
@@ -48,15 +48,11 @@ module Delayed
         opts.on('--sleep-delay N', "Amount of time to sleep when no jobs are found") do |n|
           @options[:sleep_delay] = n
         end
-        opts.on('--server', '-s', "Specify which server DJ must search for jobs") do |string|
-          @options[:server] = string.to_s
+        opts.on('-s', '--server=server', "Specify which server DJ must search for jobs") do |server|
+          @options[:server] = server 
         end
       end
       @args = opts.parse!(args)
-    end
-  
-    def hostname
-      exec "hostname -s"
     end
 
     def daemonize
