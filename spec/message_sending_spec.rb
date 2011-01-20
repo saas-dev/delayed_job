@@ -5,7 +5,7 @@ describe Delayed::MessageSending do
     class Story < ActiveRecord::Base
       def tell!(arg)
       end
-      handle_asynchronously :tell!, :server => "prod01"
+      handle_asynchronously :tell!
     end
     
     it "should alias original method" do
@@ -65,7 +65,7 @@ describe Delayed::MessageSending do
   context "delay" do
     it "should create a new PerformableMethod job" do
       lambda {
-        job = "hello".delay(:server => "prod01").count('l')
+        job = "hello".delay.count('l')
         job.payload_object.class.should   == Delayed::PerformableMethod
         job.payload_object.method.should  == :count
         job.payload_object.args.should    == ['l']

@@ -1,18 +1,17 @@
 shared_examples_for 'a backend' do
   def create_job(opts = {})
-    @backend.create(opts.merge(:payload_object => SimpleJob.new, :server => "prod01"))
+    @backend.create(opts.merge(:payload_object => SimpleJob.new))
   end
 
   before do
     Delayed::Worker.max_priority = nil
     Delayed::Worker.min_priority = nil
     Delayed::Worker.default_priority = 99
-    Delayed::Worker.server = "prod01"
     SimpleJob.runs = 0
   end
   
   it "should set run_at automatically if not set" do
-    @backend.create(:payload_object => ErrorJob.new, :server => "prod01").run_at.should_not be_nil
+    @backend.create(:payload_object => ErrorJob.new).run_at.should_not be_nil
   end
 
   it "should not set run_at automatically if already set" do
@@ -120,7 +119,7 @@ shared_examples_for 'a backend' do
   context "when another worker is already performing an task, it" do
 
     before :each do
-      @job = @backend.create :payload_object => SimpleJob.new, :locked_by => 'worker1', :locked_at => @backend.db_time_now - 5.minutes, :server => "prod01"
+      @job = @backend.create :payload_object => SimpleJob.new, :locked_by => 'worker1', :locked_at => @backend.db_time_now - 5.minutes
     end
 
     it "should not allow a second worker to get exclusive access" do
@@ -159,7 +158,7 @@ shared_examples_for 'a backend' do
   context "when another worker has worked on a task since the job was found to be available, it" do
 
     before :each do
-      @job = @backend.create :payload_object => SimpleJob.new, :server => "prod01"
+      @job = @backend.create :payload_object => SimpleJob.new
       @job_copy_for_worker_2 = @backend.find(@job.id)
     end
 
