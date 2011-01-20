@@ -24,7 +24,7 @@ module Delayed
         set_table_name :delayed_jobs
         
         before_save :set_default_run_at
-        validates_presence_of :server
+        validates_presence_of :server, :if => Proc.new { |s| Delayed::Worker.multiple_servers }
 
         named_scope :ready_to_run, lambda {|worker_name, max_run_time|
           {:conditions => ['(run_at <= ? AND (locked_at IS NULL OR locked_at < ?) OR locked_by = ?) AND failed_at IS NULL', db_time_now, db_time_now - max_run_time, worker_name]}
@@ -45,7 +45,7 @@ module Delayed
           scope = self.ready_to_run(worker_name, max_run_time)
           scope = scope.scoped(:conditions => ['priority >= ?', Worker.min_priority]) if Worker.min_priority
           scope = scope.scoped(:conditions => ['priority <= ?', Worker.max_priority]) if Worker.max_priority
-          scope = scope.scoped(:conditions => ['server = ?', Worker.server]) if Worker.server
+          scope = scope.scoped(:conditions => ['server = ?', Worker.server]) if Worker.multiple_servers and Worker.server
       
           ::ActiveRecord::Base.silence do
             scope.by_priority.all(:limit => limit)
