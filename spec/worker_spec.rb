@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Delayed::Worker do
   def job_create(opts = {})
-    Delayed::Job.create(opts.merge(:payload_object => SimpleJob.new, :server => opts[:server] || "prod01"))
+    Delayed::Job.create(opts.merge(:payload_object => SimpleJob.new))
   end
 
   describe "backend=" do
@@ -35,7 +35,7 @@ describe Delayed::Worker do
           begin
             old_max_run_time = Delayed::Worker.max_run_time
             Delayed::Worker.max_run_time = 1.second
-            @job = Delayed::Job.create :payload_object => LongRunningJob.new, :server => "prod01"
+            @job = Delayed::Job.create :payload_object => LongRunningJob.new
             @worker.run(@job)
             @job.reload.last_error.should =~ /expired/
             @job.attempts.should == 1
@@ -72,19 +72,40 @@ describe Delayed::Worker do
         end
       end
 
-      context "on multiple server" do
-        before(:each) do
-          @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => -5, :quiet => true, :server => "prod01")
+      context "on multiple servers" do
+        context "with multiple_servers switched on" do
+          before(:each) do
+            Delayed::Worker.multiple_servers = true
+            @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => -5, :quiet => true, :server => "prod01")
+          end
+
+          it "should only work_off jobs which are from its server" do
+            SimpleJob.runs.should == 0
+
+            job_create(:server => "prod01")
+            job_create(:server => "prod02")
+            @worker.work_off
+
+            SimpleJob.runs.should == 1
+          end
         end
 
-        it "should only work_off jobs that are from its server" do
-          SimpleJob.runs.should == 0
+        context "with multiple_servers switched off" do
+          before(:each) do
+            Delayed::Worker.multiple_servers = false
+            @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => -5, :quiet => true, :server => "prod01")
+          end
 
-          job_create(:server => "prod01")
-          job_create(:server => "prod02")
-          @worker.work_off
+          it "should run all jobs" do
+            SimpleJob.runs.should == 0
 
-          SimpleJob.runs.should == 1
+            job_create(:server => "prod01")
+            job_create(:server => "prod02")
+            job_create # no server defined
+            @worker.work_off
+
+            SimpleJob.runs.should == 3
+          end
         end
       end
 
@@ -120,7 +141,6 @@ describe Delayed::Worker do
           # reset defaults
           Delayed::Worker.destroy_failed_jobs = true
           Delayed::Worker.max_attempts = 25
-          Delayed::Worker.server = "prod01"
           Delayed::Job.delete_all
 
           @job = Delayed::Job.enqueue ErrorJob.new
@@ -170,7 +190,7 @@ describe Delayed::Worker do
 
       context "reschedule" do
         before do
-          @job = Delayed::Job.create :payload_object => SimpleJob.new, :server => "prod01"
+          @job = Delayed::Job.create :payload_object => SimpleJob.new
         end
 
         share_examples_for "any failure more than Worker.max_attempts times" do

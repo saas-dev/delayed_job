@@ -9,6 +9,10 @@ module Delayed
     self.max_run_time = 4.hours
     self.default_priority = 0
     self.server = nil
+
+    # By default DJ doesnt work as multiple servers queue.
+    cattr_accessor :multiple_servers
+    self.multiple_servers = false
     
     # By default failed jobs are destroyed after too many attempts. If you want to keep them around
     # (perhaps to inspect the reason for the failure), set this to false.
