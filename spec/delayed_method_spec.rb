@@ -24,11 +24,11 @@ describe Object do
     end
 
     it "should add a new entry to the job table when delay is called on it" do
-      lambda { Object.new.delay(:server => "prod01").to_s }.should change { Delayed::Job.count }.by(1)
+      lambda { Object.new.delay.to_s }.should change { Delayed::Job.count }.by(1)
     end
 
     it "should add a new entry to the job table when delay is called on the class" do
-      lambda { Object.delay(:server => "prod01").to_s }.should change { Delayed::Job.count }.by(1)
+      lambda { Object.delay.to_s }.should change { Delayed::Job.count }.by(1)
     end
     
     it "should set job options" do
