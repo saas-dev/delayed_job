@@ -289,6 +289,43 @@ shared_examples_for 'a delayed_job backend' do
       @job.id.should_not be_nil
     end
   end
+
+  context "multiple_servers" do
+    after(:all) { worker.server = nil }
+    context "with multiple server switched on" do
+      before(:each) do
+        Delayed::Worker.multiple_servers = true
+        worker.server = 'prd0001'
+      end
+
+      it "should only work off jobs which are from its server" do
+        SimpleJob.runs.should == 0
+
+        create_job(:server => "prd0001")
+        create_job(:server => "prd0002")
+        worker.work_off
+
+        SimpleJob.runs.should == 1
+      end
+    end
+
+    context "when multiple server is switched off" do
+      before(:each) do
+        Delayed::Worker.multiple_servers = false
+      end
+
+      it "should work off all jobs" do
+        SimpleJob.runs.should == 0
+
+        create_job(:server => "prd0001")
+        create_job(:server => "prd0002")
+        create_job
+        worker.work_off
+
+        SimpleJob.runs.should == 3
+      end
+    end
+  end
   
   context "max_attempts" do
     before(:each) do

@@ -9,13 +9,14 @@ module Delayed
         # Add a job to the queue
         def enqueue(*args)
           options = {
-            :priority => Delayed::Worker.default_priority
+            :priority => Delayed::Worker.default_priority,
+            :server => Delayed::Worker.server
           }.merge!(args.extract_options!)
 
           options[:payload_object] ||= args.shift
 
           if args.size > 0
-            warn "[DEPRECATION] Passing multiple arguments to `#enqueue` is deprecated. Pass a hash with :priority and :run_at."
+            warn "[DEPRECATION] Passing multiple arguments to `#enqueue` is deprecated. Pass a hash with :priority, :run_at and :server."
             options[:priority] = args.first || options[:priority]
             options[:run_at]   = args[1]
           end

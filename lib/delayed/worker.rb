@@ -6,17 +6,22 @@ require 'logger'
 
 module Delayed
   class Worker
-    cattr_accessor :min_priority, :max_priority, :max_attempts, :max_run_time, :default_priority, :sleep_delay, :logger, :delay_jobs
+    cattr_accessor :min_priority, :max_priority, :max_attempts, :max_run_time, :default_priority, :sleep_delay, :logger, :delay_jobs, :server
     self.sleep_delay = 5
     self.max_attempts = 25
     self.max_run_time = 4.hours
     self.default_priority = 0
     self.delay_jobs = true
+    self.server = nil
 
     # By default failed jobs are destroyed after too many attempts. If you want to keep them around
     # (perhaps to inspect the reason for the failure), set this to false.
     cattr_accessor :destroy_failed_jobs
     self.destroy_failed_jobs = true
+
+    # By default DJ doesnt work as multiple servers queue.
+    cattr_accessor :multiple_servers
+    self.multiple_servers = false
 
     self.logger = if defined?(Rails)
       Rails.logger
@@ -48,6 +53,7 @@ module Delayed
       self.class.min_priority = options[:min_priority] if options.has_key?(:min_priority)
       self.class.max_priority = options[:max_priority] if options.has_key?(:max_priority)
       self.class.sleep_delay = options[:sleep_delay] if options.has_key?(:sleep_delay)
+      self.class.server = options[:server] if options.has_key?(:server)
     end
 
     # Every worker has a unique name which by default is the pid of the process. There are some

@@ -27,6 +27,22 @@ describe Delayed::Backend::ActiveRecord::Job do
     end
   end
 
+  describe "on validations" do
+    context "when multiple servers is active" do
+      before(:each) { Delayed::Worker.multiple_servers = true }
+      it "should validate presence of server" do
+        Delayed::Backend::ActiveRecord::Job.new.valid?.should be_false
+      end
+    end
+
+    context "when multiple servers is deactive" do
+      before(:each) { Delayed::Worker.multiple_servers = false }
+      it "should not validate presence of server" do
+        Delayed::Backend::ActiveRecord::Job.new.valid?.should be_true
+      end
+    end
+  end
+
   describe "after_fork" do
     it "should call reconnect on the connection" do
       ActiveRecord::Base.should_receive(:establish_connection)

@@ -10,7 +10,8 @@ module Delayed
       @files_to_reopen = []
       @options = {
         :quiet => true,
-        :pid_dir => "#{Rails.root}/tmp/pids"
+        :pid_dir => "#{Rails.root}/tmp/pids",
+        :server => nil
       }
       
       @worker_count = 1
@@ -49,6 +50,9 @@ module Delayed
         end
         opts.on('-p', '--prefix NAME', "String to be prefixed to worker process names") do |prefix|
           @options[:prefix] = prefix
+        end
+        opts.on('-s', '--server=server', "Specify which server DJ must look up for jobs") do |server|
+          @options[:server] = server
         end
       end
       @args = opts.parse!(args)
