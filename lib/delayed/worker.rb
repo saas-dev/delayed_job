@@ -99,8 +99,8 @@ module Delayed
           end
 
           break if $exit
-        rescue Exception => e
-          case e.class
+        rescue StandardError => e
+          case e
           when ActiveRecord::StatementInvalid
             say "Mysql is down!"
           when SignalException
