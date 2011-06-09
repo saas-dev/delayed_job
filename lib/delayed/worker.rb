@@ -80,23 +80,37 @@ module Delayed
       trap('INT')  { say 'Exiting...'; $exit = true }
 
       loop do
-        result = nil
+        begin
+          break if $exit
+          result = nil
 
-        realtime = Benchmark.realtime do
-          result = work_off
-        end
+          realtime = Benchmark.realtime do
+            result = work_off
+          end
 
-        count = result.sum
+          count = result.sum
 
-        break if $exit
+          break if $exit
 
-        if count.zero?
+          if count.zero?
+            sleep(self.class.sleep_delay)
+          else
+            say "#{count} jobs processed at %.4f j/s, %d failed ..." % [count / realtime, result.last]
+          end
+
+          break if $exit
+        rescue Exception => e
+          case e.class
+          when ActiveRecord::StatementInvalid
+            say "Mysql is down!"
+          when SignalException
+            say "Shutting down!"
+          else
+            say "Unknown error!"
+          end
+
           sleep(self.class.sleep_delay)
-        else
-          say "#{count} jobs processed at %.4f j/s, %d failed ..." % [count / realtime, result.last]
         end
-
-        break if $exit
       end
 
     ensure
